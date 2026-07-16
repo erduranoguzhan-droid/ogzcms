@@ -1,8 +1,91 @@
+class MatrixTransition {
+  constructor() {
+    this.canvas = document.getElementById('matrix-canvas');
+    if (!this.canvas) return;
+    this.ctx = this.canvas.getContext('2d');
+    this.animationId = null;
+    this.columns = 0;
+    this.drops = [];
+    this.fontSize = 16;
+    this.chars = "01010101ABCDEFGHIJKLMNOPQRSTUVWXYZｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ";
+    
+    window.addEventListener('resize', () => {
+      if (this.canvas && this.canvas.classList.contains('active')) {
+        this.resize();
+      }
+    });
+  }
+  
+  resize() {
+    if (!this.canvas) return;
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+    this.columns = Math.floor(this.canvas.width / this.fontSize);
+    this.drops = Array(this.columns).fill(1);
+  }
+  
+  draw() {
+    this.ctx.fillStyle = 'rgba(11, 15, 25, 0.18)';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    this.ctx.font = `${this.fontSize}px monospace`;
+    
+    for (let i = 0; i < this.drops.length; i++) {
+      const text = this.chars[Math.floor(Math.random() * this.chars.length)];
+      const x = i * this.fontSize;
+      const y = this.drops[i] * this.fontSize;
+      
+      // Cyberpunk theme: green and indigo characters
+      if (Math.random() > 0.8) {
+        this.ctx.fillStyle = '#10b981'; // Green
+      } else {
+        this.ctx.fillStyle = '#6366f1'; // Indigo
+      }
+      
+      this.ctx.fillText(text, x, y);
+      
+      if (y > this.canvas.height && Math.random() > 0.975) {
+        this.drops[i] = 0;
+      }
+      
+      this.drops[i]++;
+    }
+  }
+  
+  start() {
+    if (!this.canvas) return;
+    this.resize();
+    this.canvas.classList.add('active');
+    
+    const loop = () => {
+      this.draw();
+      this.animationId = requestAnimationFrame(loop);
+    };
+    
+    if (!this.animationId) {
+      loop();
+    }
+  }
+  
+  stop() {
+    if (!this.canvas) return;
+    this.canvas.classList.remove('active');
+    setTimeout(() => {
+      if (this.animationId) {
+        cancelAnimationFrame(this.animationId);
+        this.animationId = null;
+      }
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }, 300);
+  }
+}
+
 class LuminaApp {
   constructor() {
     this.posts = [];
     this.token = localStorage.getItem('admin_token') || null;
     this.currentView = 'blog-list';
+    this.matrix = new MatrixTransition();
     
     // Bind UI elements
     this.init();
@@ -37,8 +120,22 @@ class LuminaApp {
     }
   }
 
-  // Single Page View routing
+  // Single Page View routing with animated Matrix transition
   navigateTo(viewName, params = {}) {
+    if (this.matrix) {
+      this.matrix.start();
+      setTimeout(() => {
+        this.executeNavigation(viewName, params);
+        setTimeout(() => {
+          this.matrix.stop();
+        }, 150);
+      }, 350);
+    } else {
+      this.executeNavigation(viewName, params);
+    }
+  }
+
+  executeNavigation(viewName, params = {}) {
     this.currentView = viewName;
     
     // Deactivate all sections
@@ -55,7 +152,7 @@ class LuminaApp {
       this.renderPostDetail(params.id);
     } else if (viewName === 'admin-dashboard') {
       if (!this.token) {
-        this.navigateTo('blog-list');
+        this.executeNavigation('blog-list');
         this.showToast('Lütfen önce yönetici girişi yapın.', 'error');
         return;
       }
